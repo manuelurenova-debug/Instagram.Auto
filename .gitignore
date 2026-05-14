@@ -1,0 +1,14 @@
+.env
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+videos/temp/*
+videos/cuenta_1/*
+videos/cuenta_2/*
+videos/cuenta_3/*
+!videos/*/.gitkeep
+.DS_Store
+Thumbs.db
+*.log
