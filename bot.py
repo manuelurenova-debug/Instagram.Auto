@@ -6,6 +6,7 @@ from telegram.ext import Application, CommandHandler, MessageHandler, filters, C
 from config import TELEGRAM_TOKEN, VALID_ACCOUNTS
 from utils import is_valid_instagram_url, parse_time, only_owner
 from downloader import download_video, DownloadError
+from editor import edit_video, EditorError
 
 logger = logging.getLogger(__name__)
 
@@ -47,19 +48,26 @@ async def cmd_add(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
     try:
         video_path = await download_video(url)
+        await msg.edit_text("⏳ Editando video (recorte + fade)...")
+
+        edited_path = await edit_video(video_path, cuenta)
+
         await msg.edit_text(
-            f"✅ Video descargado: `{video_path.name}`\n\n"
+            f"✅ Video listo: `{edited_path.name}`\n\n"
             f"📅 Cuenta: {cuenta}\n"
             f"⏰ Hora programada: {hora_formateada}\n\n"
-            f"⚠️ Edición y programación no implementadas todavía (Fase 2).",
+            f"⚠️ Programación no implementada todavía (Fase 3).",
             parse_mode="Markdown",
         )
     except DownloadError as e:
         await msg.edit_text(str(e))
         logger.error("DownloadError para %s: %s", url, e)
+    except EditorError as e:
+        await msg.edit_text(f"❌ Error editando: {e}")
+        logger.error("EditorError para %s: %s", url, e)
     except Exception as e:
         await msg.edit_text(f"❌ Error inesperado: {e}")
-        logger.exception("Error inesperado descargando %s", url)
+        logger.exception("Error inesperado en /add para %s", url)
 
 @only_owner
 async def cmd_programados(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
