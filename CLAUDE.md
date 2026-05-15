@@ -104,11 +104,11 @@ IG_ACCOUNT_3_TOKEN=
 ## 📝 Estado Actual y Últimos Cambios
 
 **Último Cambio:**
-- [14 May 2026] `feat`: Fase 1 — setup proyecto + bot Telegram con 5 comandos validados (stubs para descarga/edición/publicación).
+- [16 May 2026] `feat`: Fase 2 — descarga real con yt-dlp + manejo de errores específicos (privado, geo, network) + cleanup automático de /temp >24h.
 
 **Historial Reciente:**
-- _(vacío)_
+- [14 May 2026] `feat`: Fase 1 — setup proyecto + bot Telegram con 5 comandos validados (stubs para descarga/edición/publicación).
 
 **Estado del Proyecto:**
-- Fase 1 completada: bot operativo en local, validación de comandos, logging configurado.
-- Pendiente: Fase 2 (descarga con yt-dlp).
+- Fase 2 completada: descarga real con yt-dlp, async via ThreadPoolExecutor, clasificación de errores, limpieza automática de /temp.
+- Pendiente: Fase 3 (edición con ffmpeg).

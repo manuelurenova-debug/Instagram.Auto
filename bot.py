@@ -5,6 +5,7 @@ from telegram.ext import Application, CommandHandler, MessageHandler, filters, C
 
 from config import TELEGRAM_TOKEN, VALID_ACCOUNTS
 from utils import is_valid_instagram_url, parse_time, only_owner
+from downloader import download_video, DownloadError
 
 logger = logging.getLogger(__name__)
 
@@ -42,13 +43,23 @@ async def cmd_add(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     hora_formateada = hora_dt.strftime("%d/%m/%Y a las %H:%M")
     logger.info("Comando /add recibido: url=%s cuenta=%s hora=%s", url, cuenta, hora_dt)
 
-    await update.message.reply_text(
-        f"✅ Comando recibido:\n"
-        f"📹 URL: {url}\n"
-        f"📅 Cuenta: {cuenta}\n"
-        f"⏰ Hora: {hora_formateada}\n\n"
-        f"⚠️ Descarga, edición y programación no implementadas todavía (Fase 1)."
-    )
+    msg = await update.message.reply_text("⏳ Descargando video...")
+
+    try:
+        video_path = await download_video(url)
+        await msg.edit_text(
+            f"✅ Video descargado: `{video_path.name}`\n\n"
+            f"📅 Cuenta: {cuenta}\n"
+            f"⏰ Hora programada: {hora_formateada}\n\n"
+            f"⚠️ Edición y programación no implementadas todavía (Fase 2).",
+            parse_mode="Markdown",
+        )
+    except DownloadError as e:
+        await msg.edit_text(str(e))
+        logger.error("DownloadError para %s: %s", url, e)
+    except Exception as e:
+        await msg.edit_text(f"❌ Error inesperado: {e}")
+        logger.exception("Error inesperado descargando %s", url)
 
 @only_owner
 async def cmd_programados(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
