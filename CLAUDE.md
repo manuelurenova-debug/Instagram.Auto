@@ -104,12 +104,13 @@ IG_ACCOUNT_3_TOKEN=
 ## 📝 Estado Actual y Últimos Cambios
 
 **Último Cambio:**
-- [16 May 2026] `feat`: Fase 3 — edición con ffmpeg (recorte 1s + fade in/out 0.3s) en H.264 CRF 20, audio sin recomprimir, faststart para IG.
+- [16 May 2026] `feat`: Fase 4 — tabla `publicaciones` en Supabase + comandos /programados /historial /cancelar funcionales + ID corto (8 chars) para UX en Telegram.
 
 **Historial Reciente:**
+- [16 May 2026] `feat`: Fase 3 — edición con ffmpeg (recorte 1s + fade in/out 0.3s) en H.264 CRF 20, audio sin recomprimir, faststart para IG.
 - [16 May 2026] `feat`: Fase 2 — descarga real con yt-dlp + manejo de errores específicos (privado, geo, network) + cleanup automático de /temp >24h.
 - [14 May 2026] `feat`: Fase 1 — setup proyecto + bot Telegram con 5 comandos validados (stubs para descarga/edición/publicación).
 
 **Estado del Proyecto:**
-- Fase 3 completada: edición ffmpeg async (ThreadPoolExecutor), recorte 1s final, fade in/out 0.3s basado en tiempo, borrado de temp tras éxito.
-- Pendiente: Fase 4 (Supabase DB).
+- Fase 4 completada: CRUD Supabase completo, /programados /historial /cancelar operativos, horas en Europe/Madrid, DB calls async con asyncio.to_thread.
+- Pendiente: Fase 5 (publicación Graph API + APScheduler).

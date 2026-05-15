@@ -1,14 +1,31 @@
+import asyncio
 import logging
+from datetime import datetime
+from zoneinfo import ZoneInfo
 
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 
-from config import TELEGRAM_TOKEN, VALID_ACCOUNTS
+from config import TELEGRAM_TOKEN, VALID_ACCOUNTS, BASE_DIR
 from utils import is_valid_instagram_url, parse_time, only_owner
 from downloader import download_video, DownloadError
 from editor import edit_video, EditorError
+from database import (
+    insertar_publicacion,
+    obtener_programados,
+    obtener_historial,
+    cancelar_publicacion,
+    DatabaseError,
+)
 
 logger = logging.getLogger(__name__)
+MADRID_TZ = ZoneInfo("Europe/Madrid")
+
+
+def _fmt_hora(iso_str: str) -> str:
+    """Convierte ISO UTC de Supabase a hora Madrid formateada."""
+    return datetime.fromisoformat(iso_str).astimezone(MADRID_TZ).strftime("%d/%m %H:%M")
+
 
 @only_owner
 async def cmd_add(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -41,9 +58,7 @@ async def cmd_add(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         await update.message.reply_text("❌ Hora inválida. Formato HH:MM (ej: 14:30).")
         return
 
-    hora_formateada = hora_dt.strftime("%d/%m/%Y a las %H:%M")
     logger.info("Comando /add recibido: url=%s cuenta=%s hora=%s", url, cuenta, hora_dt)
-
     msg = await update.message.reply_text("⏳ Descargando video...")
 
     try:
@@ -51,35 +66,107 @@ async def cmd_add(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         await msg.edit_text("⏳ Editando video (recorte + fade)...")
 
         edited_path = await edit_video(video_path, cuenta)
+        await msg.edit_text("⏳ Guardando en base de datos...")
+
+        archivo_local = str(edited_path.relative_to(BASE_DIR))
+        pub_id = await asyncio.to_thread(
+            insertar_publicacion, url, archivo_local, cuenta, hora_dt
+        )
 
         await msg.edit_text(
-            f"✅ Video listo: `{edited_path.name}`\n\n"
-            f"📅 Cuenta: {cuenta}\n"
-            f"⏰ Hora programada: {hora_formateada}\n\n"
-            f"⚠️ Programación no implementada todavía (Fase 3).",
+            f"✅ *Programado*\n\n"
+            f"📹 Cuenta: `{cuenta}`\n"
+            f"⏰ Hora: `{hora_dt.strftime('%d/%m %H:%M')}`\n"
+            f"🆔 ID: `{pub_id[:8]}`\n\n"
+            f"_Usa /cancelar {pub_id[:8]} para cancelar._",
             parse_mode="Markdown",
         )
+
     except DownloadError as e:
         await msg.edit_text(str(e))
         logger.error("DownloadError para %s: %s", url, e)
     except EditorError as e:
         await msg.edit_text(f"❌ Error editando: {e}")
         logger.error("EditorError para %s: %s", url, e)
+    except DatabaseError as e:
+        await msg.edit_text(f"❌ Error guardando en base de datos: {e}")
+        logger.error("DatabaseError en /add para %s: %s", url, e)
     except Exception as e:
         await msg.edit_text(f"❌ Error inesperado: {e}")
         logger.exception("Error inesperado en /add para %s", url)
 
+
 @only_owner
 async def cmd_programados(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    await update.message.reply_text("📋 Función no implementada todavía (Fase 4).")
+    try:
+        pendientes = await asyncio.to_thread(obtener_programados)
+    except DatabaseError as e:
+        await update.message.reply_text(f"❌ Error consultando DB: {e}")
+        return
+
+    if not pendientes:
+        await update.message.reply_text("📋 No hay publicaciones programadas.")
+        return
+
+    lines = ["📋 *Publicaciones programadas:*\n"]
+    for p in pendientes:
+        hora = _fmt_hora(p["hora_programada"])
+        lines.append(f"`{p['id'][:8]}` — `{p['cuenta']}` — {hora}")
+    lines.append("\n_Usa /cancelar \\<ID\\> para cancelar._")
+
+    await update.message.reply_text("\n".join(lines), parse_mode="Markdown")
+
 
 @only_owner
 async def cmd_historial(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    await update.message.reply_text("📜 Función no implementada todavía (Fase 4).")
+    try:
+        historial = await asyncio.to_thread(obtener_historial, 10)
+    except DatabaseError as e:
+        await update.message.reply_text(f"❌ Error consultando DB: {e}")
+        return
+
+    if not historial:
+        await update.message.reply_text("📜 No hay publicaciones en el historial.")
+        return
+
+    lines = ["📜 *Últimas publicaciones:*\n"]
+    for p in historial:
+        hora = _fmt_hora(p["published_at"])
+        lines.append(f"✅ `{p['cuenta']}` — {hora}")
+
+    await update.message.reply_text("\n".join(lines), parse_mode="Markdown")
+
 
 @only_owner
 async def cmd_cancelar(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    await update.message.reply_text("🚫 Función no implementada todavía (Fase 4).")
+    if not context.args or len(context.args) != 1:
+        await update.message.reply_text(
+            "❌ Uso: `/cancelar <ID>`\n\nEjemplo: `/cancelar a1b2c3d4`",
+            parse_mode="Markdown",
+        )
+        return
+
+    id_corto = context.args[0].strip().lower()
+    if len(id_corto) < 4:
+        await update.message.reply_text("❌ ID demasiado corto. Usa al menos 4 caracteres.")
+        return
+
+    try:
+        cancelado = await asyncio.to_thread(cancelar_publicacion, id_corto)
+    except DatabaseError as e:
+        await update.message.reply_text(f"❌ Error en base de datos: {e}")
+        return
+
+    if cancelado:
+        await update.message.reply_text(
+            f"🚫 Publicación `{id_corto}` cancelada.", parse_mode="Markdown"
+        )
+    else:
+        await update.message.reply_text(
+            f"❌ No encontré una publicación pendiente con ID `{id_corto}`.",
+            parse_mode="Markdown",
+        )
+
 
 @only_owner
 async def cmd_ayuda(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -99,9 +186,11 @@ async def cmd_ayuda(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         parse_mode="MarkdownV2",
     )
 
+
 @only_owner
 async def msg_desconocido(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await update.message.reply_text("ℹ️ Usa /ayuda para ver los comandos disponibles.")
+
 
 def build_bot() -> Application:
     app = Application.builder().token(TELEGRAM_TOKEN).build()
