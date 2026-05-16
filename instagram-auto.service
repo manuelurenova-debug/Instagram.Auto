@@ -1,0 +1,17 @@
+[Unit]
+Description=Instagram Auto Bot
+After=network.target
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/home/ubuntu/instagram-auto
+EnvironmentFile=/home/ubuntu/instagram-auto/.env
+ExecStart=/home/ubuntu/instagram-auto/venv/bin/python /home/ubuntu/instagram-auto/main.py
+Restart=always
+RestartSec=10
+StandardOutput=append:/home/ubuntu/instagram-auto/logs/stdout.log
+StandardError=append:/home/ubuntu/instagram-auto/logs/stderr.log
+
+[Install]
+WantedBy=multi-user.target

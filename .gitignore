@@ -12,3 +12,5 @@ videos/cuenta_3/*
 .DS_Store
 Thumbs.db
 *.log
+logs/*
+!logs/.gitkeep

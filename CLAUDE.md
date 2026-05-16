@@ -104,14 +104,16 @@ IG_ACCOUNT_3_TOKEN=
 ## 📝 Estado Actual y Últimos Cambios
 
 **Último Cambio:**
-- [16 May 2026] `feat`: Fase 5 — publicación automática Graph API (REELS) + scheduler 1min + cleanup auto Storage post-publicación + alerta de tokens 7 días antes de caducar. Sistema funcional end-to-end en local.
+- [16 May 2026] `feat`: Fase 6 — desplegado en Oracle Cloud Always Free (ARM Ampere A1 Ubuntu 22.04) con systemd autorestart + logrotate + cron de actualización yt-dlp semanal + cleanup de videos >30 días. Sistema operativo 24/7.
 
 **Historial Reciente:**
+- [16 May 2026] `feat`: Fase 5 — publicación automática Graph API (REELS) + scheduler 1min + cleanup auto Storage post-publicación + alerta de tokens 7 días antes de caducar. Sistema funcional end-to-end en local.
 - [16 May 2026] `feat`: Fase 4 — tabla `publicaciones` en Supabase + comandos /programados /historial /cancelar funcionales + ID corto (8 chars) para UX en Telegram.
 - [16 May 2026] `feat`: Fase 3 — edición con ffmpeg (recorte 1s + fade in/out 0.3s) en H.264 CRF 20, audio sin recomprimir, faststart para IG.
 - [16 May 2026] `feat`: Fase 2 — descarga real con yt-dlp + manejo de errores específicos (privado, geo, network) + cleanup automático de /temp >24h.
 - [14 May 2026] `feat`: Fase 1 — setup proyecto + bot Telegram con 5 comandos validados (stubs para descarga/edición/publicación).
 
 **Estado del Proyecto:**
-- Fase 5 completada: sistema funcional end-to-end en local. storage.py, publisher.py, scheduler.py y main.py operativos.
-- Pendiente: Fase 6 (despliegue Oracle Cloud + systemd).
+- Sistema operativo 24/7 en Oracle Cloud.
+- Coste real verificado: 0€/mes.
+- Pendiente: monitorización post-launch, posibles mejoras (caption personalizado, batch /add, etc.).
