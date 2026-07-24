@@ -104,9 +104,10 @@ IG_ACCOUNT_3_TOKEN=
 ## 📝 Estado Actual y Últimos Cambios
 
 **Último Cambio:**
-- [16 May 2026] `feat`: Fase 6 — desplegado en Oracle Cloud Always Free (ARM Ampere A1 Ubuntu 22.04) con systemd autorestart + logrotate + cron de actualización yt-dlp semanal + cleanup de videos >30 días. Sistema operativo 24/7.
+- [24 Jul 2026] `fix`: correcciones detectadas en auditoría — eliminada línea muerta en `parse_time` (utils.py) que causaba `ValueError` al programar en el último día del mes; eliminada dependencia no usada `ffmpeg-python` de requirements.txt; revertidos a placeholders vacíos los valores reales de `SUPABASE_URL`/`SUPABASE_KEY` en `.env.example`; añadido `sql/schema.sql` con el `CREATE TABLE` de `publicaciones` para poder recrear la DB desde cero.
 
 **Historial Reciente:**
+- [16 May 2026] `feat`: Fase 6 — desplegado en Oracle Cloud Always Free (ARM Ampere A1 Ubuntu 22.04) con systemd autorestart + logrotate + cron de actualización yt-dlp semanal + cleanup de videos >30 días. Sistema operativo 24/7.
 - [16 May 2026] `feat`: Fase 5 — publicación automática Graph API (REELS) + scheduler 1min + cleanup auto Storage post-publicación + alerta de tokens 7 días antes de caducar. Sistema funcional end-to-end en local.
 - [16 May 2026] `feat`: Fase 4 — tabla `publicaciones` en Supabase + comandos /programados /historial /cancelar funcionales + ID corto (8 chars) para UX en Telegram.
 - [16 May 2026] `feat`: Fase 3 — edición con ffmpeg (recorte 1s + fade in/out 0.3s) en H.264 CRF 20, audio sin recomprimir, faststart para IG.

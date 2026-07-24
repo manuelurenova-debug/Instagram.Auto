@@ -30,10 +30,9 @@ def parse_time(hhmm: str) -> datetime:
     now = datetime.now(tz=MADRID_TZ)
     target = now.replace(hour=h, minute=m, second=0, microsecond=0)
     if target <= now:
-        target = target.replace(day=target.day + 1)
         # Usar timedelta para evitar problemas de fin de mes
         from datetime import timedelta
-        target = now.replace(hour=h, minute=m, second=0, microsecond=0) + timedelta(days=1)
+        target = target + timedelta(days=1)
     return target
 
 def setup_logging() -> None:
