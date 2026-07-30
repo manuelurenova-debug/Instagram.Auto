@@ -35,22 +35,35 @@ SUPABASE_URL: str = _require("SUPABASE_URL")
 SUPABASE_KEY: str = _require("SUPABASE_KEY")
 SUPABASE_BUCKET: str = os.getenv("SUPABASE_BUCKET", "videos-temp")
 
-IG_ACCOUNTS: dict = {
-    "cuenta_1": {
-        "id": _require("IG_ACCOUNT_1_ID"),
-        "token": _require("IG_ACCOUNT_1_TOKEN"),
-        "expires": _parse_expires(os.getenv("IG_ACCOUNT_1_TOKEN_EXPIRES", ""), "IG_ACCOUNT_1_TOKEN_EXPIRES"),
-    },
-    "cuenta_2": {
-        "id": _require("IG_ACCOUNT_2_ID"),
-        "token": _require("IG_ACCOUNT_2_TOKEN"),
-        "expires": _parse_expires(os.getenv("IG_ACCOUNT_2_TOKEN_EXPIRES", ""), "IG_ACCOUNT_2_TOKEN_EXPIRES"),
-    },
-    "cuenta_3": {
-        "id": _require("IG_ACCOUNT_3_ID"),
-        "token": _require("IG_ACCOUNT_3_TOKEN"),
-        "expires": _parse_expires(os.getenv("IG_ACCOUNT_3_TOKEN_EXPIRES", ""), "IG_ACCOUNT_3_TOKEN_EXPIRES"),
-    },
-}
+# Archivo cookies.txt (formato Netscape) con una sesión de Instagram exportada.
+# Necesario porque Instagram bloquea peticiones anónimas incluso a contenido público.
+# --cookies-from-browser no es fiable con Chrome moderno (App-Bound Encryption).
+INSTAGRAM_COOKIES_FILE: Path = BASE_DIR / os.getenv("INSTAGRAM_COOKIES_FILE", "cookies.txt")
+
+def _load_ig_account(n: int) -> dict | None:
+    """Carga la cuenta N solo si tiene ID y TOKEN rellenados en .env. Si no, se omite."""
+    ig_id = os.getenv(f"IG_ACCOUNT_{n}_ID")
+    token = os.getenv(f"IG_ACCOUNT_{n}_TOKEN")
+    if not ig_id or not token:
+        return None
+    return {
+        "id": ig_id,
+        "token": token,
+        "expires": _parse_expires(
+            os.getenv(f"IG_ACCOUNT_{n}_TOKEN_EXPIRES", ""), f"IG_ACCOUNT_{n}_TOKEN_EXPIRES"
+        ),
+    }
+
+IG_ACCOUNTS: dict = {}
+for _n in (1, 2, 3):
+    _account = _load_ig_account(_n)
+    if _account:
+        IG_ACCOUNTS[f"cuenta_{_n}"] = _account
+    else:
+        print(f"[AVISO] cuenta_{_n} no configurada (falta IG_ACCOUNT_{_n}_ID o IG_ACCOUNT_{_n}_TOKEN) — se omite.")
+
+if not IG_ACCOUNTS:
+    print("[ERROR] No hay ninguna cuenta de Instagram configurada en .env")
+    sys.exit(1)
 
 VALID_ACCOUNTS: list[str] = list(IG_ACCOUNTS.keys())

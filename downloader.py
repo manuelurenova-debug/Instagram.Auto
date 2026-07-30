@@ -7,7 +7,7 @@ from pathlib import Path
 import yt_dlp
 import yt_dlp.utils as yt_utils
 
-from config import VIDEOS_DIR
+from config import VIDEOS_DIR, INSTAGRAM_COOKIES_FILE
 
 logger = logging.getLogger(__name__)
 
@@ -53,9 +53,10 @@ def _download_video_sync(url: str) -> Path:
 
     _TEMP_DIR.mkdir(parents=True, exist_ok=True)
 
+    outtmpl = str(_TEMP_DIR / "%(id)s_%(timestamp)s.%(ext)s")
     ydl_opts = {
         "format": "best[ext=mp4]/best",
-        "outtmpl": str(_TEMP_DIR / "%(id)s_%(timestamp)s.%(ext)s"),
+        "outtmpl": outtmpl,
         "quiet": True,
         "no_warnings": True,
         "noplaylist": True,
@@ -65,6 +66,14 @@ def _download_video_sync(url: str) -> Path:
             "preferedformat": "mp4",
         }],
     }
+
+    if INSTAGRAM_COOKIES_FILE.exists():
+        ydl_opts["cookiefile"] = str(INSTAGRAM_COOKIES_FILE)
+    else:
+        logger.warning(
+            "Archivo de cookies no encontrado (%s) — se descargará sin autenticación.",
+            INSTAGRAM_COOKIES_FILE,
+        )
 
     start = time.time()
     try:
@@ -79,7 +88,7 @@ def _download_video_sync(url: str) -> Path:
         raise DownloadError("❌ No se encontró ningún video en esa URL.")
 
     # Reconstruir la ruta final (el postprocessor cambia la ext a .mp4)
-    expected = Path(ydl_opts["outtmpl"] % {
+    expected = Path(outtmpl % {
         "id": info.get("id", "unknown"),
         "timestamp": info.get("timestamp") or int(time.time()),
         "ext": "mp4",
