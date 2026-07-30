@@ -2,6 +2,7 @@
 cookies.txt
 cookies_base64.txt
 railway_env_template.txt
+supabase_key_correcta.txt
 __pycache__/
 *.pyc
 *.pyo
