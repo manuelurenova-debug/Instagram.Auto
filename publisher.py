@@ -9,7 +9,7 @@ from storage import upload_video, delete_video, StorageError
 
 logger = logging.getLogger(__name__)
 
-GRAPH_API_BASE = "https://graph.facebook.com/v19.0"
+GRAPH_API_BASE = "https://graph.instagram.com/v19.0"
 
 
 class PublishError(Exception):

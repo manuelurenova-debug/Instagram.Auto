@@ -1,5 +1,6 @@
 .env
 cookies.txt
+cookies_base64.txt
 __pycache__/
 *.pyc
 *.pyo

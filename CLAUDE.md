@@ -19,15 +19,17 @@ Este archivo contiene el contexto crítico, las reglas de arquitectura y las ins
 
 ## ⚠️ Infraestructura y Restricciones (¡CRÍTICO!)
 
-### 1. Coste objetivo: 0€/mes — TODO TIENE QUE SER GRATIS
-- Ninguna decisión técnica debe romper esta restricción sin avisar primero.
-- Antes de proponer cualquier servicio nuevo, verifica que tenga tier gratuito suficiente para este caso de uso.
+### 1. Coste objetivo: [30 Jul 2026] REVISADO — ya no es 0€/mes estricto
+- Decisión consciente del usuario: se despliega en **Railway** en vez de Oracle Cloud Always Free. Railway no tiene tier gratuito permanente para procesos 24/7 (solo un crédito de prueba limitado); a partir de ahí factura por uso (plan Hobby, unos pocos €/mes esperables). Usuario informado y confirmado antes de proceder.
+- Sigue aplicando para el resto de servicios (Supabase, Telegram): deben mantenerse en su tier gratuito salvo aviso explícito.
 
-### 2. Oracle Cloud Always Free Tier (servidor)
-- Corre en una VM **ARM Ampere A1** (arquitectura `aarch64`).
-- Cualquier dependencia con binarios nativos debe tener wheel para `aarch64`. Si no lo tiene, hay que compilar o sustituir.
-- El proceso se gestiona con `systemd` (`instagram-auto.service`). Si reinicias el servicio, dura ~2-5s.
-- Recursos disponibles: hasta 4 OCPUs / 24 GB RAM / 200 GB disco. Sobra para este caso de uso.
+### 2. Railway (servidor) — sustituye a Oracle Cloud
+- Despliegue desde el repo de GitHub (público), build con Nixpacks.
+- `nixpacks.toml` instala `ffmpeg` como paquete de sistema (Railway no lo trae por defecto).
+- `railway.toml` define el comando de arranque (`python main.py`) y política de reinicio automático ante fallos — equivalente al `Restart=always` que tenía el `systemd` de Oracle.
+- `cookies.txt` no viaja por git (está en `.gitignore`, son credenciales de sesión reales). En Railway se reconstruye en el arranque a partir de la variable de entorno `INSTAGRAM_COOKIES_B64` (el archivo local codificado en base64) — lógica añadida en `config.py`, no afecta al uso local en Windows (ahí el archivo ya existe en disco).
+- Las variables de entorno se configuran en el dashboard de Railway (Raw Editor, pegando todo el bloque de una vez — soporta el valor multilínea de `IG_ACCOUNT_1_CAPTION` igual que `python-dotenv`).
+- Los archivos `deploy.sh`, `cleanup.sh` e `instagram-auto.service` (preparados para Oracle) quedan sin usar mientras el despliegue sea en Railway — no se borran por si se retoma Oracle Cloud más adelante.
 
 ### 3. Supabase (Free Tier)
 - Base de datos: 500 MB → cabe sin problema, solo guardamos metadata de publicaciones.
@@ -104,6 +106,8 @@ IG_ACCOUNT_3_TOKEN=
 ## 📝 Estado Actual y Últimos Cambios
 
 **Último Cambio:**
+- [30 Jul 2026] `feat`: preparado el despliegue en Railway — `nixpacks.toml` (instala ffmpeg como paquete de sistema), `railway.toml` (comando de arranque `python main.py` + reinicio automático ante fallos). `config.py` reconstruye `cookies.txt` en el arranque desde `INSTAGRAM_COOKIES_B64` si el archivo no existe ya en disco (Railway no tiene forma de subir un archivo suelto fuera de git); probado el round-trip byte a byte. No afecta al uso local (ahí el archivo ya existe).
+- [30 Jul 2026] `fix`: primer publish real conseguido end-to-end — dos causas encontradas al depurar en vivo un fallo de publicación: (1) `publisher.py` usaba `graph.facebook.com`, pero el access token es del flujo nuevo "Instagram API with Instagram Login" (prefijo `IGAA...`), que solo funciona contra `graph.instagram.com` — cambiado `GRAPH_API_BASE`; de paso, `IG_ACCOUNT_1_ID` en `.env` tenía el ID antiguo (vinculado a Facebook Page), corregido al ID real que devuelve `/me` bajo este token. (2) El bucket `videos-temp` de Supabase Storage tenía `public=False` desde que se creó en mayo — nunca pudo servir los videos a Instagram. Corregido a `public=True` vía API. Con ambos arreglos, Reel publicado con éxito por primera vez (`ig_media_id` real confirmado).
 - [30 Jul 2026] `fix`: quitado `EnvironmentFile=.env` de `instagram-auto.service` — el parser de systemd no soporta el valor multilínea de `IG_ACCOUNT_1_CAPTION` igual que `python-dotenv`, y `config.py` ya carga el `.env` por su cuenta con `load_dotenv()`. Encontrado al preparar el despliegue en Oracle Cloud.
 - [30 Jul 2026] `fix`: ajustado el rango del zoom-in aleatorio anti-detección en `editor.py` de 102%-103% a 105%-107%. Reprobado end-to-end, sin bordes negros ni cambios en el resto del pipeline.
 - [30 Jul 2026] `feat`: caption fijo por cuenta al publicar — nueva `IG_ACCOUNT_N_CAPTION` en `.env` (soporta valores multilínea entre comillas dobles, python-dotenv los parsea tal cual). `config.py` la carga en `IG_ACCOUNTS[cuenta]["caption"]` (vacía si no está definida). `publisher.py` ya no recibe `caption` como parámetro externo (nadie lo usaba, `scheduler.py` nunca lo pasaba) — `publish_reel`/`publish_video_full` la leen directamente de `IG_ACCOUNTS` según la cuenta destino. Verificado que el valor multilínea con emojis y hashtags se parsea íntegro.

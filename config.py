@@ -40,6 +40,16 @@ SUPABASE_BUCKET: str = os.getenv("SUPABASE_BUCKET", "videos-temp")
 # --cookies-from-browser no es fiable con Chrome moderno (App-Bound Encryption).
 INSTAGRAM_COOKIES_FILE: Path = BASE_DIR / os.getenv("INSTAGRAM_COOKIES_FILE", "cookies.txt")
 
+# En Railway (u otro entorno sin el archivo ya presente en disco) se reconstruye
+# cookies.txt a partir de INSTAGRAM_COOKIES_B64 (el archivo local codificado en
+# base64, pegado como variable de entorno). En local no hace nada: el archivo
+# ya existe y esta variable no está definida.
+if not INSTAGRAM_COOKIES_FILE.exists():
+    _cookies_b64 = os.getenv("INSTAGRAM_COOKIES_B64")
+    if _cookies_b64:
+        import base64
+        INSTAGRAM_COOKIES_FILE.write_bytes(base64.b64decode(_cookies_b64))
+
 def _load_ig_account(n: int) -> dict | None:
     """Carga la cuenta N solo si tiene ID y TOKEN rellenados en .env. Si no, se omite."""
     ig_id = os.getenv(f"IG_ACCOUNT_{n}_ID")
