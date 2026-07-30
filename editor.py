@@ -1,6 +1,7 @@
 import asyncio
 import json
 import logging
+import random
 import subprocess
 import time
 from concurrent.futures import ThreadPoolExecutor
@@ -37,23 +38,34 @@ def _edit_video_sync(input_path: Path, cuenta: str) -> Path:
     original_duration = get_duration(input_path)
     logger.info("Duración original: %.2fs — archivo: %s", original_duration, input_path.name)
 
-    if original_duration < 2.0:
-        raise EditorError("Video demasiado corto para editar (necesita ≥ 2s).")
+    if original_duration < 2.3:
+        raise EditorError("Video demasiado corto para editar (necesita ≥ 2.3s).")
 
-    new_duration = original_duration - 1.0
+    new_duration = original_duration - 1.3
     fade_out_start = new_duration - 0.3
+
+    # Anti-detección: zoom-in aleatorio (102%-103%) centrado, distinto en cada edición.
+    # scale amplía el frame y crop lo recorta de vuelta al tamaño original desde el centro
+    # (crop sin x/y = centrado por defecto), así nunca aparecen bordes negros.
+    zoom = random.uniform(1.02, 1.03)
 
     output_dir = VIDEOS_DIR / cuenta
     output_dir.mkdir(parents=True, exist_ok=True)
     output_path = output_dir / f"{int(time.time())}_{cuenta}.mp4"
+
+    filtros = (
+        f"scale=trunc(iw*{zoom:.5f}/2)*2:trunc(ih*{zoom:.5f}/2)*2,"
+        f"crop=trunc(iw/{zoom:.5f}/2)*2:trunc(ih/{zoom:.5f}/2)*2,"
+        f"fade=t=in:st=0:d=0.3,"
+        f"fade=t=out:st={fade_out_start:.3f}:d=0.3"
+    )
 
     cmd = [
         "ffmpeg",
         "-y",
         "-i", str(input_path),
         "-t", f"{new_duration:.3f}",
-        "-vf",
-        f"fade=t=in:st=0:d=0.3,fade=t=out:st={fade_out_start:.3f}:d=0.3",
+        "-vf", filtros,
         "-c:v", "libx264",
         "-preset", "fast",
         "-crf", "20",
@@ -71,8 +83,8 @@ def _edit_video_sync(input_path: Path, cuenta: str) -> Path:
 
     elapsed = time.time() - start
     logger.info(
-        "Edición completada: %.2fs → %.2fs (-%ds), fade 0.3s, tiempo=%.1fs, output=%s",
-        original_duration, new_duration, 1, elapsed, output_path.name,
+        "Edición completada: %.2fs → %.2fs (-1.3s), zoom %.2f%%, fade 0.3s, tiempo=%.1fs, output=%s",
+        original_duration, new_duration, zoom * 100, elapsed, output_path.name,
     )
 
     # Borrar temp solo si la edición fue exitosa
