@@ -11,6 +11,11 @@ logger = logging.getLogger(__name__)
 
 GRAPH_API_BASE = "https://graph.instagram.com/v19.0"
 
+# El video siempre entra con un fade de 0.3s desde negro (editor.py) — la
+# miniatura de portada saldría negra si se coge el primer frame. Se fija
+# justo después del fade para evitarlo.
+THUMB_OFFSET_MS = 800
+
 
 class PublishError(Exception):
     pass
@@ -22,6 +27,7 @@ def _create_container(ig_user_id: str, access_token: str, video_url: str, captio
         "media_type": "REELS",
         "video_url": video_url,
         "caption": caption,
+        "thumb_offset": THUMB_OFFSET_MS,
         "access_token": access_token,
     }
     try:
