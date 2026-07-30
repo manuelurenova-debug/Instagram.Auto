@@ -52,6 +52,7 @@ def _load_ig_account(n: int) -> dict | None:
         "expires": _parse_expires(
             os.getenv(f"IG_ACCOUNT_{n}_TOKEN_EXPIRES", ""), f"IG_ACCOUNT_{n}_TOKEN_EXPIRES"
         ),
+        "caption": os.getenv(f"IG_ACCOUNT_{n}_CAPTION", ""),
     }
 
 IG_ACCOUNTS: dict = {}

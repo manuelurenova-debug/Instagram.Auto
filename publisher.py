@@ -88,18 +88,19 @@ def _publish_container(ig_user_id: str, access_token: str, container_id: str) ->
     return data["id"]
 
 
-def publish_reel(video_public_url: str, cuenta: str, caption: str = "") -> str:
+def publish_reel(video_public_url: str, cuenta: str) -> str:
     """Crea container → espera → publica. Devuelve el ig_media_id."""
     account = IG_ACCOUNTS[cuenta]
     ig_user_id = account["id"]
     access_token = account["token"]
+    caption = account.get("caption", "")
 
     container_id = _create_container(ig_user_id, access_token, video_public_url, caption)
     _wait_for_container_ready(container_id, access_token)
     return _publish_container(ig_user_id, access_token, container_id)
 
 
-def publish_video_full(local_path: Path, cuenta: str, caption: str = "") -> str:
+def publish_video_full(local_path: Path, cuenta: str) -> str:
     """
     Orquesta el flujo completo:
       1. Sube video a Supabase Storage (URL pública temporal)
@@ -116,7 +117,7 @@ def publish_video_full(local_path: Path, cuenta: str, caption: str = "") -> str:
         public_url = upload_video(local_path)
 
         logger.info("[publisher] Publicando como Reel en %s...", cuenta)
-        media_id = publish_reel(public_url, cuenta, caption)
+        media_id = publish_reel(public_url, cuenta)
         logger.info("[publisher] ✅ ig_media_id=%s", media_id)
         return media_id
 
