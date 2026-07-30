@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}Historial{% endblock %}
+{% block content %}
+<h2>Historial</h2>
+
+{% if error %}
+<p class="error">⚠️ {{ error }}</p>
+{% elif not items %}
+<p>Todavía no hay publicaciones en el historial.</p>
+{% else %}
+
+<div class="historial-grid">
+    {% for item in items %}
+    <div class="historial-card">
+        {% if item.thumb_url %}
+        <img src="{{ item.thumb_url }}" alt="miniatura" class="miniatura" onerror="this.style.display='none'">
+        {% endif %}
+        <div class="historial-info">
+            <span class="estado-badge {{ 'estado-ok' if item.estado == 'publicado' else 'estado-error' }}">
+                {{ '✅ Publicado' if item.estado == 'publicado' else '❌ Error' }}
+            </span>
+            <strong>{{ item.cuenta }}</strong>
+            <span class="fecha">{{ item.fecha }}</span>
+            {% if item.error_msg %}
+            <span class="error-msg">{{ item.error_msg }}</span>
+            {% endif %}
+            {% if item.video_url %}
+            <video controls preload="none" src="{{ item.video_url }}"></video>
+            {% endif %}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+{% endif %}
+{% endblock %}

@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}Dashboard{% endblock %} · Instagram Auto</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <header class="topbar">
+        <h1>📹 Instagram Auto</h1>
+        <nav>
+            <a href="{{ url_for('dashboard') }}">Dashboard</a>
+            <a href="{{ url_for('calendario') }}">Calendario</a>
+            <a href="{{ url_for('historial_view') }}">Historial</a>
+        </nav>
+        <span id="estado-badge" class="badge">…</span>
+    </header>
+    <main>
+        {% block content %}{% endblock %}
+    </main>
+    <script>
+        async function actualizarEstado() {
+            const badge = document.getElementById('estado-badge');
+            try {
+                const r = await fetch('/api/estado');
+                const d = await r.json();
+                if (d.activo) {
+                    badge.textContent = '🟢 Bot activo';
+                    badge.className = 'badge activo';
+                } else {
+                    badge.textContent = '🔴 Bot inactivo';
+                    badge.className = 'badge inactivo';
+                }
+            } catch (e) {
+                badge.textContent = '⚠️ Sin conexión';
+                badge.className = 'badge inactivo';
+            }
+        }
+        actualizarEstado();
+        setInterval(actualizarEstado, 20000);
+    </script>
+</body>
+</html>

@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}Calendario{% endblock %}
+{% block content %}
+<h2>Calendario semanal</h2>
+
+{% if error %}
+<p class="error">⚠️ {{ error }}</p>
+{% else %}
+
+<div class="semana-nav">
+    <a href="{{ url_for('calendario', offset=offset - 1) }}">← Semana anterior</a>
+    <span class="semana-rango">{{ rango }}</span>
+    <a href="{{ url_for('calendario', offset=offset + 1) }}">Semana siguiente →</a>
+</div>
+{% if offset != 0 %}
+<p class="enlace-secundario"><a href="{{ url_for('calendario') }}">Volver a esta semana</a></p>
+{% endif %}
+
+<div class="semana-grid">
+    {% for dia in semana %}
+    <div class="dia-columna{% if dia.es_hoy %} dia-hoy{% endif %}">
+        <div class="dia-cabecera">{{ dia.nombre }}<br><small>{{ dia.fecha }}</small></div>
+        {% if dia.videos %}
+            {% for item in dia.videos %}
+            <div class="item-programado">
+                <strong>{{ item.hora }}</strong> — {{ item.cuenta }}
+                {% if item.video_url %}
+                <video controls preload="none" src="{{ item.video_url }}"></video>
+                {% endif %}
+            </div>
+            {% endfor %}
+        {% else %}
+        <div class="dia-vacio">—</div>
+        {% endif %}
+    </div>
+    {% endfor %}
+</div>
+
+{% endif %}
+{% endblock %}

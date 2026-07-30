@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block content %}
+<h2>Resumen</h2>
+
+{% if error %}
+<p class="error">⚠️ {{ error }}</p>
+{% else %}
+
+<section class="tarjetas">
+    <div class="tarjeta tarjeta-destacada">
+        <span class="tarjeta-label">Próxima publicación</span>
+        {% if proxima %}
+        <span class="tarjeta-valor">{{ proxima.cuenta }} — {{ proxima.hora }}</span>
+        {% else %}
+        <span class="tarjeta-valor tarjeta-vacio">No hay nada programado</span>
+        {% endif %}
+    </div>
+    <div class="tarjeta">
+        <span class="tarjeta-label">Pendientes hoy</span>
+        <span class="tarjeta-valor">{{ resumen.pendientes_hoy }}</span>
+    </div>
+    <div class="tarjeta">
+        <span class="tarjeta-label">Publicados hoy</span>
+        <span class="tarjeta-valor">{{ resumen.publicados_hoy }}</span>
+    </div>
+    <div class="tarjeta">
+        <span class="tarjeta-label">Errores (últimos 50)</span>
+        <span class="tarjeta-valor{% if resumen.errores_total > 0 %} tarjeta-alerta{% endif %}">{{ resumen.errores_total }}</span>
+    </div>
+    <div class="tarjeta">
+        <span class="tarjeta-label">Total en cola</span>
+        <span class="tarjeta-valor">{{ resumen.total_pendientes }}</span>
+    </div>
+</section>
+
+<p class="enlace-secundario"><a href="{{ url_for('calendario') }}">Ver calendario completo →</a></p>
+
+{% endif %}
+{% endblock %}

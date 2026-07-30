@@ -73,7 +73,7 @@ def obtener_programados() -> list[dict]:
         response = (
             get_client()
             .table("publicaciones")
-            .select("id, cuenta, hora_programada")
+            .select("id, cuenta, hora_programada, archivo_local")
             .eq("estado", "pendiente")
             .order("hora_programada", desc=False)
             .execute()
@@ -98,6 +98,24 @@ def obtener_historial(n: int = 10) -> list[dict]:
         return response.data
     except Exception as e:
         logger.error("Error obteniendo historial: %s", e)
+        raise DatabaseError(f"Error consultando historial: {e}") from e
+
+
+def obtener_historial_dashboard(n: int = 30) -> list[dict]:
+    """Publicados + errores, con archivo_local para preview/miniatura. Solo para el dashboard local."""
+    try:
+        response = (
+            get_client()
+            .table("publicaciones")
+            .select("id, cuenta, archivo_local, estado, published_at, error_msg, created_at")
+            .in_("estado", ["publicado", "error"])
+            .order("created_at", desc=True)
+            .limit(n)
+            .execute()
+        )
+        return response.data
+    except Exception as e:
+        logger.error("Error obteniendo historial del dashboard: %s", e)
         raise DatabaseError(f"Error consultando historial: {e}") from e
 
 
