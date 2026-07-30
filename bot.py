@@ -7,7 +7,7 @@ from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 
 from config import TELEGRAM_TOKEN, VALID_ACCOUNTS, BASE_DIR
-from utils import is_valid_instagram_url, parse_time, only_owner
+from utils import is_valid_instagram_url, parse_time, parse_date_time, only_owner
 from downloader import download_video, DownloadError
 from editor import edit_video, EditorError
 from database import (
@@ -24,23 +24,29 @@ MADRID_TZ = ZoneInfo("Europe/Madrid")
 
 def _fmt_hora(iso_str: str) -> str:
     """Convierte ISO UTC de Supabase a hora Madrid formateada."""
-    return datetime.fromisoformat(iso_str).astimezone(MADRID_TZ).strftime("%d/%m %H:%M")
+    return datetime.fromisoformat(iso_str).astimezone(MADRID_TZ).strftime("%d/%m/%Y %H:%M")
 
 
 @only_owner
 async def cmd_add(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     args = context.args or []
 
-    if len(args) != 3:
+    if len(args) not in (3, 4):
         await update.message.reply_text(
             "❌ Uso correcto:\n"
-            "/add <URL> <cuenta_1|cuenta_2|cuenta_3> <HH:MM>\n\n"
-            "Ejemplo:\n"
-            "/add https://instagram.com/reel/ABC123/ cuenta_2 14:30"
+            "/add <URL> <cuenta_1|cuenta_2|cuenta_3> <HH:MM>\n"
+            "/add <URL> <cuenta_1|cuenta_2|cuenta_3> <YYYY-MM-DD> <HH:MM>\n\n"
+            "Ejemplos:\n"
+            "/add https://instagram.com/reel/ABC123/ cuenta_2 14:30\n"
+            "/add https://instagram.com/reel/ABC123/ cuenta_2 2026-08-15 14:30"
         )
         return
 
-    url, cuenta, hora_str = args
+    if len(args) == 3:
+        url, cuenta, hora_str = args
+        fecha_str = None
+    else:
+        url, cuenta, fecha_str, hora_str = args
 
     if not is_valid_instagram_url(url):
         await update.message.reply_text("❌ URL de Instagram inválida.")
@@ -53,9 +59,9 @@ async def cmd_add(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         return
 
     try:
-        hora_dt = parse_time(hora_str)
-    except ValueError:
-        await update.message.reply_text("❌ Hora inválida. Formato HH:MM (ej: 14:30).")
+        hora_dt = parse_date_time(fecha_str, hora_str) if fecha_str else parse_time(hora_str)
+    except ValueError as e:
+        await update.message.reply_text(f"❌ {e}")
         return
 
     logger.info("Comando /add recibido: url=%s cuenta=%s hora=%s", url, cuenta, hora_dt)
@@ -76,7 +82,7 @@ async def cmd_add(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         await msg.edit_text(
             f"✅ *Programado*\n\n"
             f"📹 Cuenta: `{cuenta}`\n"
-            f"⏰ Hora: `{hora_dt.strftime('%d/%m %H:%M')}`\n"
+            f"⏰ Hora: `{hora_dt.strftime('%d/%m/%Y %H:%M')}`\n"
             f"🆔 ID: `{pub_id[:8]}`\n\n"
             f"_Usa /cancelar {pub_id[:8]} para cancelar._",
             parse_mode="Markdown",
@@ -173,7 +179,10 @@ async def cmd_ayuda(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await update.message.reply_text(
         "🤖 *Instagram Auto \\- Comandos*\n\n"
         "`/add <URL> <cuenta> <HH:MM>`\n"
+        "`/add <URL> <cuenta> <YYYY\\-MM\\-DD> <HH:MM>`\n"
         "  Descarga, edita y programa un video\\.\n"
+        "  Sin fecha: hoy, o mañana si la hora ya pasó\\.\n"
+        "  Con fecha: cualquier día futuro\\.\n"
         "  Cuentas: cuenta\\_1, cuenta\\_2, cuenta\\_3\n\n"
         "`/programados`\n"
         "  Lista videos pendientes de publicar\\.\n\n"
