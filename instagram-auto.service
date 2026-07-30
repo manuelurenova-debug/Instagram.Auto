@@ -6,7 +6,6 @@ After=network.target
 Type=simple
 User=ubuntu
 WorkingDirectory=/home/ubuntu/instagram-auto
-EnvironmentFile=/home/ubuntu/instagram-auto/.env
 ExecStart=/home/ubuntu/instagram-auto/venv/bin/python /home/ubuntu/instagram-auto/main.py
 Restart=always
 RestartSec=10
