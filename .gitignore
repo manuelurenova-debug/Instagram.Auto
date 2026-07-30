@@ -1,6 +1,7 @@
 .env
 cookies.txt
 cookies_base64.txt
+railway_env_template.txt
 __pycache__/
 *.pyc
 *.pyo
