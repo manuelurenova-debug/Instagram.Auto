@@ -1,6 +1,7 @@
 import asyncio
 import logging
 from datetime import datetime
+from pathlib import Path
 from zoneinfo import ZoneInfo
 
 from telegram import Update
@@ -183,6 +184,12 @@ async def cmd_cancelar(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         return
 
     if cancelado:
+        video_url = cancelado.get("video_url")
+        if video_url:
+            archivo_local = cancelado.get("archivo_local")
+            file_name = Path(archivo_local).name if archivo_local else video_url.split("/")[-1].split("?")[0]
+            await asyncio.to_thread(delete_video, file_name)
+
         await update.message.reply_text(
             f"🚫 Publicación `{id_corto}` cancelada.", parse_mode="Markdown"
         )

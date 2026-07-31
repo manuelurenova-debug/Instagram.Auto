@@ -146,25 +146,27 @@ def marcar_error(pub_id: str, error_msg: str) -> None:
         raise DatabaseError(f"Error actualizando estado error: {e}") from e
 
 
-def cancelar_publicacion(id_corto: str) -> bool:
+def cancelar_publicacion(id_corto: str) -> dict | None:
+    """Devuelve el registro cancelado (con archivo_local/video_url, para poder
+    borrarlo también de Storage) o None si no se encontró ninguna pendiente."""
     try:
         # Traer solo las pendientes y filtrar por prefijo en Python (la tabla es pequeña)
         response = (
             get_client()
             .table("publicaciones")
-            .select("id, estado")
+            .select("id, estado, archivo_local, video_url")
             .eq("estado", "pendiente")
             .execute()
         )
         match = next((r for r in response.data if r["id"].startswith(id_corto)), None)
         if not match:
-            return False
+            return None
 
         get_client().table("publicaciones").update(
             {"estado": "cancelado"}
         ).eq("id", match["id"]).execute()
         logger.info("Publicación cancelada: id=%s", match["id"][:8])
-        return True
+        return match
     except Exception as e:
         logger.error("Error cancelando publicación id_corto=%s: %s", id_corto, e)
         raise DatabaseError(f"Error cancelando publicación: {e}") from e
