@@ -14,9 +14,11 @@ from editor import edit_video, EditorError
 from storage import upload_video, delete_video, StorageError
 from database import (
     insertar_publicacion,
+    actualizar_video_url,
     obtener_programados,
     obtener_historial,
     cancelar_publicacion,
+    marcar_error,
     DatabaseError,
 )
 
@@ -74,27 +76,33 @@ async def cmd_add(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         await msg.edit_text("⏳ Editando video (recorte + fade)...")
 
         edited_path = await edit_video(video_path, cuenta)
-        await msg.edit_text("⏳ Subiendo a Supabase Storage...")
+        await msg.edit_text("⏳ Guardando en base de datos...")
 
         archivo_local = str(edited_path.relative_to(BASE_DIR))
         file_name = edited_path.name
-        video_url = await asyncio.to_thread(upload_video, edited_path)
+
+        # Se inserta ANTES de subir a Storage: si el proceso muere o falla a
+        # partir de aquí, queda un registro visible y gestionable desde
+        # Telegram (/programados, /cancelar) en vez de un archivo huérfano
+        # e invisible en Storage que nada limpiaría nunca.
+        pub_id = await asyncio.to_thread(
+            insertar_publicacion, url, archivo_local, cuenta, hora_dt
+        )
+
+        await msg.edit_text("⏳ Subiendo a Supabase Storage...")
+        try:
+            video_url = await asyncio.to_thread(upload_video, edited_path)
+        except StorageError as e:
+            await asyncio.to_thread(marcar_error, pub_id, f"Fallo al subir a Storage: {e}")
+            raise
+
+        await asyncio.to_thread(actualizar_video_url, pub_id, video_url)
 
         # El disco es efímero en Railway — ya está a salvo en Storage, no hace falta conservarlo.
         try:
             edited_path.unlink(missing_ok=True)
         except OSError as e:
             logger.warning("No se pudo borrar el archivo editado %s: %s", edited_path.name, e)
-
-        await msg.edit_text("⏳ Guardando en base de datos...")
-        try:
-            pub_id = await asyncio.to_thread(
-                insertar_publicacion, url, archivo_local, cuenta, hora_dt, video_url
-            )
-        except DatabaseError:
-            # Evitar dejar el archivo huérfano en Storage (cuenta contra el 1GB free)
-            await asyncio.to_thread(delete_video, file_name)
-            raise
 
         await msg.edit_text(
             f"✅ *Programado*\n\n"

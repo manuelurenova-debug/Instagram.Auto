@@ -27,7 +27,7 @@ def insertar_publicacion(
     archivo_local: str,
     cuenta: str,
     hora_programada: datetime,
-    video_url: str,
+    video_url: str | None = None,
 ) -> str:
     try:
         response = (
@@ -49,6 +49,21 @@ def insertar_publicacion(
     except Exception as e:
         logger.error("Error insertando publicación: %s", e)
         raise DatabaseError(f"Error guardando en base de datos: {e}") from e
+
+
+def actualizar_video_url(pub_id: str, video_url: str) -> None:
+    """Enlaza la video_url tras subir a Storage. Se inserta la fila antes de
+    subir para que un fallo/caída a mitad de camino deje un registro visible
+    y gestionable (/programados, /cancelar) en vez de un archivo huérfano
+    e invisible en Storage."""
+    try:
+        get_client().table("publicaciones").update(
+            {"video_url": video_url}
+        ).eq("id", pub_id).execute()
+        logger.info("video_url enlazada: id=%s", pub_id[:8])
+    except Exception as e:
+        logger.error("Error actualizando video_url id=%s: %s", pub_id[:8], e)
+        raise DatabaseError(f"Error actualizando video_url: {e}") from e
 
 
 def obtener_pendientes_listos() -> list[dict]:
