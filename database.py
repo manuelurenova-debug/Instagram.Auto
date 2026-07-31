@@ -27,6 +27,7 @@ def insertar_publicacion(
     archivo_local: str,
     cuenta: str,
     hora_programada: datetime,
+    video_url: str,
 ) -> str:
     try:
         response = (
@@ -35,6 +36,7 @@ def insertar_publicacion(
             .insert({
                 "url_original": url_original,
                 "archivo_local": archivo_local,
+                "video_url": video_url,
                 "cuenta": cuenta,
                 "hora_programada": hora_programada.isoformat(),
                 "estado": "pendiente",
@@ -73,7 +75,7 @@ def obtener_programados() -> list[dict]:
         response = (
             get_client()
             .table("publicaciones")
-            .select("id, cuenta, hora_programada, archivo_local")
+            .select("id, cuenta, hora_programada, archivo_local, video_url")
             .eq("estado", "pendiente")
             .order("hora_programada", desc=False)
             .execute()
@@ -102,12 +104,12 @@ def obtener_historial(n: int = 10) -> list[dict]:
 
 
 def obtener_historial_dashboard(n: int = 30) -> list[dict]:
-    """Publicados + errores, con archivo_local para preview/miniatura. Solo para el dashboard local."""
+    """Publicados + errores, con archivo_local/video_url para preview/miniatura. Solo para el dashboard local."""
     try:
         response = (
             get_client()
             .table("publicaciones")
-            .select("id, cuenta, archivo_local, estado, published_at, error_msg, created_at")
+            .select("id, cuenta, archivo_local, video_url, estado, published_at, error_msg, created_at")
             .in_("estado", ["publicado", "error"])
             .order("created_at", desc=True)
             .limit(n)

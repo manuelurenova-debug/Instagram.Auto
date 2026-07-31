@@ -10,6 +10,7 @@ from config import TELEGRAM_TOKEN, VALID_ACCOUNTS, BASE_DIR
 from utils import is_valid_instagram_url, parse_time, parse_date_time, only_owner
 from downloader import download_video, DownloadError
 from editor import edit_video, EditorError
+from storage import upload_video, delete_video, StorageError
 from database import (
     insertar_publicacion,
     obtener_programados,
@@ -72,12 +73,27 @@ async def cmd_add(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         await msg.edit_text("⏳ Editando video (recorte + fade)...")
 
         edited_path = await edit_video(video_path, cuenta)
-        await msg.edit_text("⏳ Guardando en base de datos...")
+        await msg.edit_text("⏳ Subiendo a Supabase Storage...")
 
         archivo_local = str(edited_path.relative_to(BASE_DIR))
-        pub_id = await asyncio.to_thread(
-            insertar_publicacion, url, archivo_local, cuenta, hora_dt
-        )
+        file_name = edited_path.name
+        video_url = await asyncio.to_thread(upload_video, edited_path)
+
+        # El disco es efímero en Railway — ya está a salvo en Storage, no hace falta conservarlo.
+        try:
+            edited_path.unlink(missing_ok=True)
+        except OSError as e:
+            logger.warning("No se pudo borrar el archivo editado %s: %s", edited_path.name, e)
+
+        await msg.edit_text("⏳ Guardando en base de datos...")
+        try:
+            pub_id = await asyncio.to_thread(
+                insertar_publicacion, url, archivo_local, cuenta, hora_dt, video_url
+            )
+        except DatabaseError:
+            # Evitar dejar el archivo huérfano en Storage (cuenta contra el 1GB free)
+            await asyncio.to_thread(delete_video, file_name)
+            raise
 
         await msg.edit_text(
             f"✅ *Programado*\n\n"
@@ -94,6 +110,9 @@ async def cmd_add(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     except EditorError as e:
         await msg.edit_text(f"❌ Error editando: {e}")
         logger.error("EditorError para %s: %s", url, e)
+    except StorageError as e:
+        await msg.edit_text(f"❌ Error subiendo a Storage: {e}")
+        logger.error("StorageError en /add para %s: %s", url, e)
     except DatabaseError as e:
         await msg.edit_text(f"❌ Error guardando en base de datos: {e}")
         logger.error("DatabaseError en /add para %s: %s", url, e)

@@ -2,6 +2,7 @@ import subprocess
 import time
 from datetime import datetime, timedelta
 from pathlib import Path
+from urllib.parse import quote
 from zoneinfo import ZoneInfo
 
 from flask import Flask, render_template, jsonify, send_file, abort, request
@@ -32,16 +33,23 @@ def _estado_bot() -> dict:
     return {"activo": activo, "ultima_actividad": ultima.strftime("%H:%M:%S")}
 
 
-def _video_url(archivo_local: str | None) -> str | None:
-    if not archivo_local:
-        return None
-    return "/video/" + Path(archivo_local).as_posix()
+def _video_src(item: dict) -> str | None:
+    """URL reproducible: la pública de Supabase Storage si existe (lo normal desde que
+    /add sube al editar), o el archivo local servido por Flask para registros antiguos."""
+    if item.get("video_url"):
+        return item["video_url"]
+    if item.get("archivo_local"):
+        return "/video/" + Path(item["archivo_local"]).as_posix()
+    return None
 
 
-def _thumb_url(archivo_local: str | None) -> str | None:
-    if not archivo_local:
+def _thumb_src(item: dict) -> str | None:
+    """Fuente para la miniatura: mismo criterio que _video_src. ffmpeg puede leer
+    directamente de una URL pública, no hace falta que el archivo esté en local."""
+    origen = item.get("video_url") or item.get("archivo_local")
+    if not origen:
         return None
-    return "/thumbnail/" + Path(archivo_local).as_posix()
+    return "/thumbnail?src=" + quote(origen, safe="")
 
 
 def _resolver_video(relpath: str) -> Path:
@@ -122,7 +130,7 @@ def calendario():
                 "id_corto": p["id"][:8],
                 "cuenta": p["cuenta"],
                 "hora": fecha.strftime("%H:%M"),
-                "video_url": _video_url(p.get("archivo_local")),
+                "video_url": _video_src(p),
             })
 
     semana = [
@@ -155,14 +163,13 @@ def historial_view():
     for h in historial:
         fecha_ref = h.get("published_at") or h.get("created_at")
         fecha_fmt = _parse_iso(fecha_ref).strftime("%d/%m/%Y %H:%M") if fecha_ref else "—"
-        archivo = h.get("archivo_local")
         items.append({
             "cuenta": h["cuenta"],
             "estado": h["estado"],
             "fecha": fecha_fmt,
             "error_msg": h.get("error_msg"),
-            "video_url": _video_url(archivo),
-            "thumb_url": _thumb_url(archivo),
+            "video_url": _video_src(h),
+            "thumb_url": _thumb_src(h),
         })
 
     return render_template("historial.html", error=None, items=items)
@@ -174,16 +181,35 @@ def servir_video(relpath):
     return send_file(destino, mimetype="video/mp4", conditional=True)
 
 
-@app.route("/thumbnail/<path:relpath>")
-def servir_thumbnail(relpath):
-    destino = _resolver_video(relpath)
-    THUMBNAILS_DIR.mkdir(parents=True, exist_ok=True)
-    thumb_path = THUMBNAILS_DIR / (relpath.replace("/", "_") + ".jpg")
+@app.route("/thumbnail")
+def servir_thumbnail():
+    """Miniatura vía ffmpeg. `src` puede ser una URL pública de Storage (ffmpeg
+    la lee directamente sin descargarla antes) o una ruta local relativa."""
+    src = request.args.get("src", "")
+    if not src:
+        abort(404)
 
-    if not thumb_path.exists() or thumb_path.stat().st_mtime < destino.stat().st_mtime:
+    es_url = src.startswith("http://") or src.startswith("https://")
+    if es_url:
+        ffmpeg_input = src
+        cache_key = src.split("/")[-1].split("?")[0]
+        origen_local = None
+    else:
+        origen_local = _resolver_video(src)
+        ffmpeg_input = str(origen_local)
+        cache_key = Path(src).name
+
+    THUMBNAILS_DIR.mkdir(parents=True, exist_ok=True)
+    thumb_path = THUMBNAILS_DIR / (cache_key + ".jpg")
+
+    necesita_generar = not thumb_path.exists()
+    if not necesita_generar and origen_local:
+        necesita_generar = thumb_path.stat().st_mtime < origen_local.stat().st_mtime
+
+    if necesita_generar:
         try:
             subprocess.run(
-                ["ffmpeg", "-y", "-ss", "1", "-i", str(destino),
+                ["ffmpeg", "-y", "-ss", "1", "-i", ffmpeg_input,
                  "-vframes", "1", "-q:v", "4", str(thumb_path)],
                 capture_output=True, timeout=30, check=True,
             )

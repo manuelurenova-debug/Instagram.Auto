@@ -6,7 +6,7 @@ from typing import Callable, Awaitable, Optional
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
-from config import BASE_DIR, IG_ACCOUNTS
+from config import IG_ACCOUNTS
 from database import obtener_pendientes_listos, marcar_publicado, marcar_error
 from publisher import publish_video_full, PublishError
 
@@ -31,19 +31,25 @@ async def _notify(text: str) -> None:
 async def _process_publication(pub: dict) -> None:
     pub_id = pub["id"]
     cuenta = pub["cuenta"]
-    archivo_local: Path = BASE_DIR / pub["archivo_local"]
+    video_url = pub.get("video_url")
 
-    if not archivo_local.exists():
-        msg = f"Archivo no encontrado en disco: {archivo_local}"
-        logger.error(msg)
+    if not video_url:
+        msg = "video_url no encontrada — publicación creada antes de subir a Storage al editar"
+        logger.error("[scheduler] %s: %s", pub_id[:8], msg)
         await asyncio.to_thread(marcar_error, pub_id, msg)
-        await _notify(f"❌ Error en `{cuenta}`: archivo no encontrado en disco.")
+        await _notify(
+            f"❌ Error en `{cuenta}`: publicación antigua sin video en Storage. "
+            f"Cancélala y vuelve a programarla con /add."
+        )
         return
+
+    archivo_local = pub.get("archivo_local")
+    file_name = Path(archivo_local).name if archivo_local else video_url.split("/")[-1].split("?")[0]
 
     try:
         logger.info("[scheduler] Publicando %s en %s...", pub_id[:8], cuenta)
         # publish_video_full es síncrono (requests + time.sleep) → ejecutar en thread
-        media_id = await asyncio.to_thread(publish_video_full, archivo_local, cuenta)
+        media_id = await asyncio.to_thread(publish_video_full, video_url, file_name, cuenta)
         await asyncio.to_thread(marcar_publicado, pub_id, media_id)
         hora = datetime.now().strftime("%H:%M")
         await _notify(f"✅ Publicado en `{cuenta}` a las {hora}")

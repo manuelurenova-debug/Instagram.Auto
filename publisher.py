@@ -1,11 +1,10 @@
 import logging
 import time
-from pathlib import Path
 
 import requests
 
 from config import IG_ACCOUNTS
-from storage import upload_video, delete_video, StorageError
+from storage import delete_video
 
 logger = logging.getLogger(__name__)
 
@@ -106,31 +105,22 @@ def publish_reel(video_public_url: str, cuenta: str) -> str:
     return _publish_container(ig_user_id, access_token, container_id)
 
 
-def publish_video_full(local_path: Path, cuenta: str) -> str:
+def publish_video_full(video_url: str, file_name: str, cuenta: str) -> str:
     """
     Orquesta el flujo completo:
-      1. Sube video a Supabase Storage (URL pública temporal)
-      2. Publica como Reel vía Graph API
-      3. Borra del Storage (liberar 1GB free) — siempre, haya o no error
+      1. Publica como Reel vía Graph API usando la URL ya subida a Storage
+         (subida en /add, justo tras editar — no aquí, para no depender del
+         disco local en el momento de publicar).
+      2. Borra del Storage (liberar 1GB free) — siempre, haya o no error.
 
     Devuelve el ig_media_id.
     """
-    file_name = local_path.name
-    public_url = None
-
     try:
-        logger.info("[publisher] Subiendo %s a Storage...", file_name)
-        public_url = upload_video(local_path)
-
         logger.info("[publisher] Publicando como Reel en %s...", cuenta)
-        media_id = publish_reel(public_url, cuenta)
+        media_id = publish_reel(video_url, cuenta)
         logger.info("[publisher] ✅ ig_media_id=%s", media_id)
         return media_id
 
-    except StorageError as e:
-        raise PublishError(str(e)) from e
-
     finally:
         # Borrar del bucket SIEMPRE para no acumular en el 1GB free
-        if public_url is not None:
-            delete_video(file_name)
+        delete_video(file_name)

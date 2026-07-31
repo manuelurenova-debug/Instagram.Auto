@@ -5,6 +5,7 @@ create table if not exists publicaciones (
     id uuid primary key default gen_random_uuid(),
     url_original text not null,
     archivo_local text not null,
+    video_url text,
     cuenta text not null,
     hora_programada timestamptz not null,
     estado text not null default 'pendiente'
@@ -19,3 +20,7 @@ create table if not exists publicaciones (
 -- WHERE estado = 'pendiente' AND hora_programada <= now() ORDER BY hora_programada
 create index if not exists idx_publicaciones_pendientes
     on publicaciones (estado, hora_programada);
+
+-- Migración para una tabla `publicaciones` ya existente (creada antes de video_url):
+-- ejecutar solo esta línea en el SQL Editor de Supabase.
+-- alter table publicaciones add column if not exists video_url text;
