@@ -1,5 +1,6 @@
 import logging
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Optional
 
 from supabase import create_client, Client
@@ -84,6 +85,31 @@ def reclamar_publicacion(pub_id: str) -> bool:
     except Exception as e:
         logger.error("Error reclamando publicación id=%s: %s", pub_id[:8], e)
         raise DatabaseError(f"Error reclamando publicación: {e}") from e
+
+
+def obtener_archivos_en_uso() -> set[str]:
+    """Nombres de archivo (en Storage) de publicaciones pendientes o en proceso.
+    Todo lo demás en el bucket es basura que la limpieza periódica puede borrar."""
+    try:
+        response = (
+            get_client()
+            .table("publicaciones")
+            .select("archivo_local, video_url")
+            .in_("estado", ["pendiente", "procesando"])
+            .execute()
+        )
+        archivos: set[str] = set()
+        for row in response.data:
+            video_url = row.get("video_url")
+            archivo_local = row.get("archivo_local")
+            if video_url:
+                archivos.add(video_url.split("/")[-1].split("?")[0])
+            elif archivo_local:
+                archivos.add(Path(archivo_local).name)
+        return archivos
+    except Exception as e:
+        logger.error("Error obteniendo archivos en uso: %s", e)
+        raise DatabaseError(f"Error consultando archivos en uso: {e}") from e
 
 
 def obtener_pendientes_listos() -> list[dict]:

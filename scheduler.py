@@ -9,6 +9,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from config import IG_ACCOUNTS
 from database import obtener_pendientes_listos, reclamar_publicacion, marcar_publicado, marcar_error
 from publisher import publish_video_full, PublishError
+from storage import limpiar_huerfanos
 
 logger = logging.getLogger(__name__)
 
@@ -110,6 +111,20 @@ async def check_token_expiration() -> None:
             )
 
 
+async def limpiar_storage() -> None:
+    """Red de seguridad diaria: borra restos huérfanos en Supabase Storage
+    que se hayan escapado de la limpieza normal (crash a media subida, etc.)."""
+    try:
+        borrados = await asyncio.to_thread(limpiar_huerfanos)
+    except Exception as e:
+        logger.error("[scheduler] Error en limpieza de Storage: %s", e)
+        return
+
+    if borrados:
+        logger.info("[scheduler] Limpieza de Storage: %d huérfano(s) borrado(s): %s", len(borrados), borrados)
+        await _notify(f"🧹 Limpieza de Storage: {len(borrados)} archivo(s) huérfano(s) borrado(s).")
+
+
 def build_scheduler() -> AsyncIOScheduler:
     scheduler = AsyncIOScheduler(timezone="Europe/Madrid")
     scheduler.add_job(
@@ -125,5 +140,12 @@ def build_scheduler() -> AsyncIOScheduler:
         hour=10,
         minute=0,
         id="check_tokens",
+    )
+    scheduler.add_job(
+        limpiar_storage,
+        trigger="cron",
+        hour=4,
+        minute=0,
+        id="cleanup_storage",
     )
     return scheduler
