@@ -42,12 +42,13 @@ def _edit_video_sync(input_path: Path, cuenta: str) -> Path:
         raise EditorError("Video demasiado corto para editar (necesita ≥ 2.3s).")
 
     new_duration = original_duration - 1.3
-    fade_out_start = new_duration - 0.3
+    fade_duration = 0.5
+    fade_out_start = new_duration - fade_duration
 
-    # Anti-detección: zoom-in aleatorio (105%-107%) centrado, distinto en cada edición.
+    # Anti-detección: zoom-in aleatorio (110%-112%) centrado, distinto en cada edición.
     # scale amplía el frame y crop lo recorta de vuelta al tamaño original desde el centro
     # (crop sin x/y = centrado por defecto), así nunca aparecen bordes negros.
-    zoom = random.uniform(1.05, 1.07)
+    zoom = random.uniform(1.10, 1.12)
 
     output_dir = VIDEOS_DIR / cuenta
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -56,8 +57,8 @@ def _edit_video_sync(input_path: Path, cuenta: str) -> Path:
     filtros = (
         f"scale=trunc(iw*{zoom:.5f}/2)*2:trunc(ih*{zoom:.5f}/2)*2,"
         f"crop=trunc(iw/{zoom:.5f}/2)*2:trunc(ih/{zoom:.5f}/2)*2,"
-        f"fade=t=in:st=0:d=0.3,"
-        f"fade=t=out:st={fade_out_start:.3f}:d=0.3"
+        f"fade=t=in:st=0:d={fade_duration},"
+        f"fade=t=out:st={fade_out_start:.3f}:d={fade_duration}"
     )
 
     cmd = [
@@ -83,8 +84,8 @@ def _edit_video_sync(input_path: Path, cuenta: str) -> Path:
 
     elapsed = time.time() - start
     logger.info(
-        "Edición completada: %.2fs → %.2fs (-1.3s), zoom %.2f%%, fade 0.3s, tiempo=%.1fs, output=%s",
-        original_duration, new_duration, zoom * 100, elapsed, output_path.name,
+        "Edición completada: %.2fs → %.2fs (-1.3s), zoom %.2f%%, fade %.1fs, tiempo=%.1fs, output=%s",
+        original_duration, new_duration, zoom * 100, fade_duration, elapsed, output_path.name,
     )
 
     # Borrar temp solo si la edición fue exitosa
