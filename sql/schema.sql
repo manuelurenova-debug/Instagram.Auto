@@ -9,7 +9,7 @@ create table if not exists publicaciones (
     cuenta text not null,
     hora_programada timestamptz not null,
     estado text not null default 'pendiente'
-        check (estado in ('pendiente', 'publicado', 'error', 'cancelado')),
+        check (estado in ('pendiente', 'procesando', 'publicado', 'error', 'cancelado')),
     ig_media_id text,
     published_at timestamptz,
     error_msg text,
@@ -24,3 +24,9 @@ create index if not exists idx_publicaciones_pendientes
 -- Migración para una tabla `publicaciones` ya existente (creada antes de video_url):
 -- ejecutar solo esta línea en el SQL Editor de Supabase.
 -- alter table publicaciones add column if not exists video_url text;
+
+-- Migración para añadir el estado 'procesando' (claim atómico anti-doble-publicación):
+-- ejecutar solo estas dos líneas en el SQL Editor de Supabase.
+-- alter table publicaciones drop constraint if exists publicaciones_estado_check;
+-- alter table publicaciones add constraint publicaciones_estado_check
+--     check (estado in ('pendiente', 'procesando', 'publicado', 'error', 'cancelado'));

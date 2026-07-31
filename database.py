@@ -66,6 +66,26 @@ def actualizar_video_url(pub_id: str, video_url: str) -> None:
         raise DatabaseError(f"Error actualizando video_url: {e}") from e
 
 
+def reclamar_publicacion(pub_id: str) -> bool:
+    """Marca pendiente -> procesando de forma atómica (UPDATE...WHERE con guarda
+    de estado). Si devuelve False, otro proceso ya la reclamó primero — evita
+    publicar dos veces lo mismo si hay un solape de contenedores en un
+    redeploy de Railway."""
+    try:
+        response = (
+            get_client()
+            .table("publicaciones")
+            .update({"estado": "procesando"})
+            .eq("id", pub_id)
+            .eq("estado", "pendiente")
+            .execute()
+        )
+        return len(response.data) > 0
+    except Exception as e:
+        logger.error("Error reclamando publicación id=%s: %s", pub_id[:8], e)
+        raise DatabaseError(f"Error reclamando publicación: {e}") from e
+
+
 def obtener_pendientes_listos() -> list[dict]:
     try:
         now = datetime.now(timezone.utc).isoformat()

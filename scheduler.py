@@ -7,7 +7,7 @@ from typing import Callable, Awaitable, Optional
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 from config import IG_ACCOUNTS
-from database import obtener_pendientes_listos, marcar_publicado, marcar_error
+from database import obtener_pendientes_listos, reclamar_publicacion, marcar_publicado, marcar_error
 from publisher import publish_video_full, PublishError
 
 logger = logging.getLogger(__name__)
@@ -31,6 +31,15 @@ async def _notify(text: str) -> None:
 async def _process_publication(pub: dict) -> None:
     pub_id = pub["id"]
     cuenta = pub["cuenta"]
+
+    # Claim atómico (pendiente -> procesando): si otro proceso ya la cogió
+    # primero (p.ej. dos contenedores solapados durante un redeploy de
+    # Railway), esto devuelve False y no publicamos por duplicado.
+    reclamada = await asyncio.to_thread(reclamar_publicacion, pub_id)
+    if not reclamada:
+        logger.info("[scheduler] %s ya reclamada por otro proceso, se omite.", pub_id[:8])
+        return
+
     video_url = pub.get("video_url")
 
     if not video_url:
