@@ -45,10 +45,10 @@ def _edit_video_sync(input_path: Path, cuenta: str) -> Path:
     fade_duration = 0.5
     fade_out_start = new_duration - fade_duration
 
-    # Anti-detección: zoom-in aleatorio (110%-112%) centrado, distinto en cada edición.
+    # Anti-detección: zoom-in aleatorio (105%-108%) centrado, distinto en cada edición.
     # scale amplía el frame y crop lo recorta de vuelta al tamaño original desde el centro
     # (crop sin x/y = centrado por defecto), así nunca aparecen bordes negros.
-    zoom = random.uniform(1.10, 1.12)
+    zoom = random.uniform(1.05, 1.08)
 
     output_dir = VIDEOS_DIR / cuenta
     output_dir.mkdir(parents=True, exist_ok=True)
